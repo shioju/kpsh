@@ -1,0 +1,13 @@
+[package]
+name = "rust-kpcli"
+version = "0.1.0"
+authors = ["Sheng Hau <shioju12@gmail.com>"]
+
+[dependencies]
+clipboard = "0.4.0"
+docopt = "0.8"
+rust-kpdb = "0.2.0"
+rpassword = "1.0.0"
+serde = "1.0"
+serde_derive = "1.0"
+termios = "0.2"
