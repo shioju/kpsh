@@ -6,6 +6,7 @@ authors = ["Sheng Hau <shioju12@gmail.com>"]
 [dependencies]
 clipboard = "0.4.0"
 docopt = "0.8"
+qptrie = "0.2.2"
 rust-kpdb = "0.2.0"
 rpassword = "1.0.0"
 serde = "1.0"
