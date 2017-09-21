@@ -8,7 +8,6 @@ extern crate termios;
 extern crate qptrie;
 extern crate ansi_term;
 
-
 use kpdb::{CompositeKey, Database, EntryUuid, Entry};
 use kpdb::StringValue::{Plain, Protected};
 use std::fs::File;
@@ -21,14 +20,13 @@ use termios::{Termios, TCSANOW, ECHO, ICANON, tcsetattr};
 use qptrie::Trie;
 use ansi_term::Colour::{Red, Green};
 
-
 const USAGE: &'static str = "
 Rust Keypass CLI
 
 Usage:
-  kp <kdbx-file-path>
-  kp (-h | --help)
-  kp --version
+  kpsh <kdbx-file-path>
+  kpsh (-h | --help)
+  kpsh --version
 
 Options:
   -h --help     Show this screen.
@@ -42,8 +40,8 @@ struct Args {
 
 fn main() {
     let args: Args = Docopt::new(USAGE)
-                            .and_then(|d| d.deserialize())
-                            .unwrap_or_else(|e| e.exit());
+        .and_then(|d| d.deserialize())
+        .unwrap_or_else(|e| e.exit());
     println!("{:?}", args);
 
     let mut file = File::open(args.arg_kdbx_file_path).unwrap();
@@ -59,14 +57,20 @@ fn main() {
         if let Some(password) = t.get(&account_name) {
             let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
             ctx.set_contents(password.to_owned()).unwrap();
-            println!("{}", Green.bold().paint(format!("Password for {} copied onto clipboard\n", account_name)));
+            println!("{}",
+                     Green
+                         .bold()
+                         .paint(format!("Password for {} copied onto clipboard\n",
+                                        account_name)));
         } else {
-            println!("{}", Red.bold().paint(format!("Password for {} not found\n", account_name)));
+            println!("{}",
+                     Red.bold()
+                         .paint(format!("Password for {} not found\n", account_name)));
         }
     }
 }
 
-fn into_trie(values: Values<EntryUuid,Entry>) -> Trie<String, String> {
+fn into_trie(values: Values<EntryUuid, Entry>) -> Trie<String, String> {
     let mut t = Trie::new();
     let title_string_key = kpdb::StringKey::Title;
     let password_string_key = kpdb::StringKey::Password;
@@ -84,15 +88,15 @@ fn into_trie(values: Values<EntryUuid,Entry>) -> Trie<String, String> {
 
 fn get_account_name(t: &Trie<String, String>) -> String {
     let stdin = 0; // couldn't get std::os::unix::io::FromRawFd to work
-                   // on /dev/stdin or /dev/tty
+    // on /dev/stdin or /dev/tty
     let termios = Termios::from_fd(stdin).unwrap();
-    let mut new_termios = termios.clone();  // make a mutable copy of termios
-                                            // that we will modify
+    let mut new_termios = termios.clone(); // make a mutable copy of termios
+    // that we will modify
     new_termios.c_lflag &= !(ICANON | ECHO); // no echo and canonical mode
     tcsetattr(stdin, TCSANOW, &mut new_termios).unwrap();
     let stdout = io::stdout();
     let mut reader = io::stdin();
-    let mut buffer = [0;1];  // read exactly one byte
+    let mut buffer = [0; 1]; // read exactly one byte
     let mut account = String::new();
     println!("Get password for which account?");
     loop {
@@ -100,24 +104,61 @@ fn get_account_name(t: &Trie<String, String>) -> String {
         reader.read_exact(&mut buffer).unwrap();
         match char::from_u32(buffer[0] as u32) {
             Some('\n') => {
-              println!();
-              return account;
-            },
-            Some('\u{7f}') => { account.pop(); },
-            Some('\t') => { show_matching_accounts(&t, &account) },
-            Some(c) => { account.push(c); },
+                println!();
+                return account;
+            }
+            Some('\u{7f}') => {
+                account.pop();
+            }
+            Some('\t') => account = typeahead(&t, &account),
+            Some(c) => {
+                account.push(c);
+            }
             None => (),
         }
         print!("{} \r{}", '\u{8}', account);
     }
     // tcsetattr(stdin, TCSANOW, & termios).unwrap();  // reset the stdin to
-                                                    // original termios data
+    // original termios data
 }
 
-fn show_matching_accounts(t: &Trie<String, String>, prefix: &str) {
-    println!();
-    for (k, _) in t.prefix_iter(&prefix.to_string()).include_prefix() {
-        print!("{}\t", k);
+fn typeahead(t: &Trie<String, String>, prefix: &str) -> String {
+    let m = matching_accounts(t, prefix);
+    let lcp = longest_common_prefix(&m);
+    if lcp == prefix {
+        show_vector(&m);
     }
-    println!();
+    lcp
+}
+
+fn longest_common_prefix(v: &Vec<String>) -> String {
+    v.iter()
+        .fold(v[0].to_owned(), |acc, s| lcp_util(acc, s.to_owned()))
+}
+
+fn lcp_util(s1: String, s2: String) -> String {
+    let mut c1 = s1.chars();
+    let mut c2 = s2.chars();
+    let mut i = 0;
+    while let (Some(a), Some(b)) = (c1.next(), c2.next()) {
+        if a == b {
+            i += 1;
+        } else {
+            break;
+        }
+    }
+    (&s1)[..i].to_string()
+}
+
+
+fn matching_accounts(t: &Trie<String, String>, prefix: &str) -> Vec<String> {
+    t.prefix_iter(&prefix.to_string())
+        .include_prefix()
+        .map(|(k, _)| k.to_owned())
+        .collect()
+}
+
+fn show_vector(v: &Vec<String>) {
+    println!("\n{}",
+             v.iter().fold(String::new(), |acc, s| acc + s + "\t"));
 }
