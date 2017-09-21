@@ -6,6 +6,8 @@ extern crate serde_derive;
 extern crate docopt;
 extern crate termios;
 extern crate qptrie;
+extern crate ansi_term;
+
 
 use kpdb::{CompositeKey, Database, EntryUuid, Entry};
 use kpdb::StringValue::{Plain, Protected};
@@ -17,6 +19,7 @@ use clipboard::{ClipboardContext, ClipboardProvider};
 use docopt::Docopt;
 use termios::{Termios, TCSANOW, ECHO, ICANON, tcsetattr};
 use qptrie::Trie;
+use ansi_term::Colour::{Red, Green};
 
 
 const USAGE: &'static str = "
@@ -56,9 +59,9 @@ fn main() {
         if let Some(password) = t.get(&account_name) {
             let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
             ctx.set_contents(password.to_owned()).unwrap();
-            println!("Password for {} copied onto clipboard\n", account_name);
+            println!("{}", Green.bold().paint(format!("Password for {} copied onto clipboard\n", account_name)));
         } else {
-            println!("Password for {} not found\n", account_name);
+            println!("{}", Red.bold().paint(format!("Password for {} not found\n", account_name)));
         }
     }
 }
