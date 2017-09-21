@@ -1,5 +1,5 @@
 [package]
-name = "rust-kpcli"
+name = "kpsh"
 version = "0.1.0"
 authors = ["Sheng Hau <shioju12@gmail.com>"]
 
