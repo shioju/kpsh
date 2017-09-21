@@ -162,3 +162,23 @@ fn show_vector(v: &Vec<String>) {
     println!("\n{}",
              v.iter().fold(String::new(), |acc, s| acc + s + "\t"));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{longest_common_prefix, lcp_util};
+
+    #[test]
+    fn lcp_util_returns_the_longest_common_prefix_of_two_strings() {
+        let s1 = "foobar".to_string();
+        let s2 = "fooqux".to_string();
+
+        assert_eq!("foo", lcp_util(s1, s2));
+    }
+
+    #[test]
+    fn longest_common_prefix_returns_the_longest_common_prefix_of_a_vector_of_strings() {
+        let v = vec!["foo1".to_string(), "foo2".to_string(), "foo3".to_string()];
+
+        assert_eq!("foo", longest_common_prefix(&v));
+    }
+}
