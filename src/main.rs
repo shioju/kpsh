@@ -7,6 +7,7 @@ extern crate docopt;
 extern crate termios;
 extern crate qptrie;
 extern crate ansi_term;
+extern crate secstr;
 
 use kpdb::{CompositeKey, Database, EntryUuid, Entry};
 use kpdb::StringValue::{Plain, Protected};
@@ -19,6 +20,7 @@ use docopt::Docopt;
 use termios::{Termios, TCSANOW, ECHO, ICANON, tcsetattr};
 use qptrie::Trie;
 use ansi_term::Colour::{Red, Green};
+use secstr::SecStr;
 
 const USAGE: &'static str = "
 Rust Keypass CLI
@@ -56,6 +58,7 @@ fn main() {
         let account_name = get_account_name(&t);
         if let Some(password) = t.get(&account_name) {
             let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
+            let password = std::str::from_utf8(password.unsecure()).unwrap();
             ctx.set_contents(password.to_owned()).unwrap();
             println!("{}",
                      Green
@@ -70,7 +73,7 @@ fn main() {
     }
 }
 
-fn into_trie(values: Values<EntryUuid, Entry>) -> Trie<String, String> {
+fn into_trie(values: Values<EntryUuid, Entry>) -> Trie<String, &SecStr> {
     let mut t = Trie::new();
     let title_string_key = kpdb::StringKey::Title;
     let password_string_key = kpdb::StringKey::Password;
@@ -78,15 +81,14 @@ fn into_trie(values: Values<EntryUuid, Entry>) -> Trie<String, String> {
     for val in values {
         if let Plain(ref title) = val.strings[&title_string_key] {
             if let Protected(ref password) = val.strings[&password_string_key] {
-                let password = std::str::from_utf8(password.unsecure()).unwrap();
-                t.insert(title.to_string(), password.to_string());
+                t.insert(title.to_string(), password);
             }
         }
     }
     t
 }
 
-fn get_account_name(t: &Trie<String, String>) -> String {
+fn get_account_name(t: &Trie<String, &SecStr>) -> String {
     let stdin = 0; // couldn't get std::os::unix::io::FromRawFd to work
     // on /dev/stdin or /dev/tty
     let termios = Termios::from_fd(stdin).unwrap();
@@ -122,7 +124,7 @@ fn get_account_name(t: &Trie<String, String>) -> String {
     // original termios data
 }
 
-fn typeahead(t: &Trie<String, String>, prefix: &str) -> String {
+fn typeahead(t: &Trie<String, &SecStr>, prefix: &str) -> String {
     let m = matching_accounts(t, prefix);
     let lcp = longest_common_prefix(&m);
     if lcp == prefix {
@@ -151,7 +153,7 @@ fn lcp_util(s1: String, s2: String) -> String {
 }
 
 
-fn matching_accounts(t: &Trie<String, String>, prefix: &str) -> Vec<String> {
+fn matching_accounts(t: &Trie<String, &SecStr>, prefix: &str) -> Vec<String> {
     t.prefix_iter(&prefix.to_string())
         .include_prefix()
         .map(|(k, _)| k.to_owned())
